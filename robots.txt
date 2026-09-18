@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://dunap2647-commits.github.io/browser-info/sitemap.xml
