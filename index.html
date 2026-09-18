@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Что ваш браузер рассказывает о вас</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --card2:#1d2129; --line:#2a2f3a;
+    --txt:#e8eaed; --dim:#9aa3b2; --accent:#4cc2ff; --warn:#ffb84c; --ok:#57d38c;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:32px 16px 64px;
+    background:radial-gradient(1200px 600px at 50% -200px,#1a2030,var(--bg));
+    color:var(--txt);
+    font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:clamp(22px,4vw,34px);margin:0 0 8px;line-height:1.2}
+  .lead{color:var(--dim);margin:0 0 28px;max-width:70ch}
+  .note{
+    background:linear-gradient(180deg,rgba(76,194,255,.10),rgba(76,194,255,.04));
+    border:1px solid rgba(76,194,255,.35);
+    border-left:3px solid var(--accent);
+    border-radius:10px;padding:14px 16px;margin:0 0 28px;color:#cfe9ff;font-size:14.5px
+  }
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);
+     margin:32px 0 12px;font-weight:600}
+  .grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+  .row{
+    background:var(--card);border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0
+  }
+  .row .k{font-size:12.5px;color:var(--dim);letter-spacing:.02em}
+  .row .v{font-family:var(--mono);font-size:14px;word-break:break-word;overflow-wrap:anywhere}
+  .v.muted{color:var(--dim)}
+  .v.hi{color:var(--warn)}
+  .v.good{color:var(--ok)}
+  .badge{
+    display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;
+    border:1px solid var(--line);color:var(--dim);margin-left:8px;vertical-align:middle
+  }
+  footer{margin-top:40px;color:var(--dim);font-size:13.5px;border-top:1px solid var(--line);padding-top:18px}
+  code{font-family:var(--mono);background:#0b0d11;border:1px solid var(--line);
+       padding:1px 5px;border-radius:5px;font-size:13px}
+  button{
+    margin-top:28px;background:var(--card2);color:var(--txt);border:1px solid var(--line);
+    border-radius:9px;padding:10px 18px;font:inherit;font-size:14.5px;cursor:pointer
+  }
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  .fpr{
+    font-family:var(--mono);font-size:20px;letter-spacing:.06em;
+    color:var(--accent);background:#0b0d11;border:1px dashed rgba(76,194,255,.4);
+    border-radius:10px;padding:14px;text-align:center;margin-top:12px
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Что ваш браузер рассказывает о вас</h1>
+  <p class="lead">
+    Эта страница не содержит форм входа, не читает пароли и не отправляет данные на сервер.
+    Всё, что вы видите ниже, уже было доступно любому сайту в момент загрузки — здесь оно просто
+    собрано в одном месте, чтобы это было наглядно.
+  </p>
+
+  <div class="note">
+    <strong>Проверьте сами:</strong> откройте DevTools → Network, обновите страницу. Запросов
+    к внешним адресам быть не должно. Пароль тут вводить некуда — и это главный признак,
+    отличающий такую страницу от фишинговой.
+  </div>
+
+  <h2>Устройство и система</h2>
+  <div class="grid" id="device"></div>
+
+  <h2>Экран и окно</h2>
+  <div class="grid" id="screen"></div>
+
+  <h2>Локаль и время</h2>
+  <div class="grid" id="locale"></div>
+
+  <h2>Сеть и состояние</h2>
+  <div class="grid" id="net"></div>
+
+  <h2>Графика и железо</h2>
+  <div class="grid" id="gpu"></div>
+
+  <h2>Отпечаток браузера</h2>
+  <p class="lead" style="margin:0 0 4px">
+    Комбинация этих параметров почти уникальна. Именно на ней строится «отпечаток» (fingerprint),
+    который позволяет узнавать вас между сессиями даже без cookie.
+  </p>
+  <div class="fpr" id="fingerprint">—</div>
+
+  <button id="refresh">Обновить показания</button>
+
+  <footer>
+    Никакие данные не покидают ваш браузер. Перезагрузка страницы стирает всё.
+    Хотите убедиться — загляните в исходный код (Ctrl+U) или посмотрите вкладку Network.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- утилиты ----------
+  const $ = id => document.getElementById(id);
+
+  function card(container, key, value, cls){
+    const row = document.createElement("div");
+    row.className = "row";
+    const k = document.createElement("div");
+    k.className = "k"; k.textContent = key;
+    const v = document.createElement("div");
+    v.className = "v" + (cls ? " " + cls : "");
+    v.textContent = (value === undefined || value === null || value === "")
+      ? "недоступно" : String(value);
+    if (v.textContent === "недоступно") v.classList.add("muted");
+    row.append(k, v);
+    container.appendChild(row);
+  }
+
+  function clear(container){ container.replaceChildren(); }
+
+  // ---------- сбор данных ----------
+  const ua = navigator.userAgent;
+
+  // Аккуратная подсказка по браузеру/ОС (без библиотек, только по UA)
+  function guessBrowser(){
+    const u = ua;
+    if (/Edg\//.test(u))          return "Edge";
+    if (/OPR\/|Opera/.test(u))    return "Opera";
+    if (/YaBrowser/.test(u))      return "Yandex Browser";
+    if (/Firefox\//.test(u))      return "Firefox";
+    if (/CriOS/.test(u))          return "Chrome (iOS)";
+    if (/Chrome\//.test(u))       return "Chrome";
+    if (/Safari\//.test(u))       return "Safari";
+    return "не определён";
+  }
+  function guessOS(){
+    const u = ua;
+    if (/Windows NT 10/.test(u))  return "Windows 10/11";
+    if (/Windows/.test(u))        return "Windows";
+    if (/Android/.test(u))        return "Android";
+    if (/iPhone|iPad|iPod/.test(u)) return "iOS / iPadOS";
+    if (/Mac OS X/.test(u))       return "macOS";
+    if (/CrOS/.test(u))           return "ChromeOS";
+    if (/Linux/.test(u))          return "Linux";
+    return "не определена";
+  }
+
+  async function buildFingerprint(){
+    // Простой стабильный хеш по набору стабильных параметров
+    const parts = [
+      ua,
+      navigator.language,
+      (navigator.languages || []).join(","),
+      screen.width + "x" + screen.height + "x" + screen.colorDepth,
+      window.devicePixelRatio,
+      new Date().getTimezoneOffset(),
+      navigator.hardwareConcurrency || "",
+      navigator.maxTouchPoints || 0,
+      Intl.DateTimeFormat().resolvedOptions().timeZone || ""
+    ];
+    const data = new TextEncoder().encode(parts.join("|"));
+    const buf = await crypto.subtle.digest("SHA-256", data);
+    const hex = [...new Uint8Array(buf)]
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+    return hex.slice(0, 16).match(/.{4}/g).join(" ");
+  }
+
+  // ---------- отрисовка ----------
+  async function render(){
+    const d = $("device"), s = $("screen"), l = $("locale"),
+          n = $("net"), g = $("gpu");
+    clear(d); clear(s); clear(l); clear(n); clear(g);
+
+    // --- устройство ---
+    card(d, "Браузер (по UA)", guessBrowser());
+    card(d, "Операционная система", guessOS());
+    card(d, "User-Agent", ua);
+    card(d, "Платформа (устаревшее API)", navigator.platform || "—");
+    card(d, "Тип устройства",
+      /Mobi|Android|iPhone/.test(ua) ? "мобильное" :
+      /iPad|Tablet/.test(ua)         ? "планшет"   : "десктоп");
+    card(d, "CPU, потоков", navigator.hardwareConcurrency || "—");
+    card(d, "ОЗУ, ГБ (приблизительно)",
+      navigator.deviceMemory ? "≥ " + navigator.deviceMemory : "—");
+    card(d, "Сенсорный ввод",
+      ("ontouchstart" in window || navigator.maxTouchPoints > 0) ? "да" : "нет");
+    card(d, "Точек касания", navigator.maxTouchPoints ?? 0);
+    card(d, "PDF-просмотрщик встроен", navigator.pdfViewerEnabled ? "да" : "нет");
+    card(d, "Do Not Track",
+      navigator.doNotTrack === "1" ? "включён" : "не задан", 
+      navigator.doNotTrack === "1" ? "good" : "muted");
+
+    // --- экран ---
+    card(s, "Разрешение экрана", screen.width + " × " + screen.height);
+    card(s, "Область окна браузера", window.innerWidth + " × " + window.innerHeight);
+    card(s, "Доступная область", screen.availWidth + " × " + screen.availHeight);
+    card(s, "Плотность пикселей (DPR)", window.devicePixelRatio);
+    card(s, "Глубина цвета", screen.colorDepth + " бит");
+    card(s, "Ориентация",
+      (screen.orientation && screen.orientation.type) || "—");
+    card(s, "Цветовая схема системы",
+      matchMedia("(prefers-color-scheme: dark)").matches ? "тёмная" : "светлая");
+    card(s, "Уменьшение анимации",
+      matchMedia("(prefers-reduced-motion: reduce)").matches ? "включено" : "выключено");
+
+    // --- локаль и время ---
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "—";
+    card(l, "Язык браузера", navigator.language);
+    card(l, "Предпочитаемые языки", (navigator.languages || []).join(", ") || "—");
+    card(l, "Часовой пояс", tz);
+    card(l, "Смещение от UTC",
+      "UTC" + (new Date().getTimezoneOffset() > 0 ? "-" : "+") +
+      Math.abs(new Date().getTimezoneOffset() / 60));
+    card(l, "Локальное время", new Date().toLocaleString("ru-RU"));
+    card(l, "Календарь / нумерация",
+      Intl.DateTimeFormat().resolvedOptions().calendar + " / " +
+      Intl.DateTimeFormat().resolvedOptions().numberingSystem);
+
+    // --- сеть и состояние ---
+    card(n, "Онлайн", navigator.onLine ? "да" : "нет",
+      navigator.onLine ? "good" : "hi");
+    const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    card(n, "Тип соединения", c ? (c.effectiveType || "—") : "—");
+    card(n, "Скорость, Мбит/с (оценка)", c && c.downlink != null ? c.downlink : "—");
+    card(n, "Задержка, мс (оценка)", c && c.rtt != null ? c.rtt : "—");
+    card(n, "Экономия трафика",
+      c && c.saveData ? "включена" : (c ? "выключена" : "—"));
+    card(n, "Referrer (откуда пришли)",
+      document.referrer || "прямой заход", document.referrer ? "hi" : "muted");
+    card(n, "Cookies включены", navigator.cookieEnabled ? "да" : "нет");
+    card(n, "URL страницы", location.href);
+    card(n, "Протокол / хост", location.protocol + " // " + location.host);
+
+    // --- графика ---
+    let renderer = "недоступно", vendor = "недоступно";
+    try {
+      const gl = document.createElement("canvas").getContext("webgl")
+              || document.createElement("canvas").getContext("experimental-webgl");
+      if (gl){
+        const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+        if (dbg){
+          vendor   = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL)   || vendor;
+          renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || renderer;
+        } else {
+          vendor   = gl.getParameter(gl.VENDOR);
+          renderer = gl.getParameter(gl.RENDERER);
+        }
+      }
+    } catch(e){}
+    card(g, "Видеокарта (WebGL)", renderer);
+    card(g, "Производитель GPU", vendor);
+    card(g, "Поддержка WebGL2",
+      !!document.createElement("canvas").getContext("webgl2") ? "да" : "нет");
+
+    // --- отпечаток ---
+    try {
+      $("fingerprint").textContent = await buildFingerprint();
+    } catch(e){
+      $("fingerprint").textContent = "не удалось вычислить (нет crypto.subtle)";
+    }
+  }
+
+  $("refresh").addEventListener("click", render);
+  render();
+})();
+</script>
+</body>
+</html>
